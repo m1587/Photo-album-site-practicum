@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { AppBar, Toolbar, Button } from '@mui/material';
 import HomeIcon from '@mui/icons-material/Home';
-import ContactIcon from '@mui/icons-material/Soap';
+import ContactIcon from '@mui/icons-material/Phone';
 const Navbar = () => {
 
   return (

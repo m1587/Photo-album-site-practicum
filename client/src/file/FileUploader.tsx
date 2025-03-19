@@ -13,8 +13,8 @@ import { UserContext } from '../context/UserContext';
 import axios from 'axios';
 // import axios, { AxiosProgressEvent } from 'axios'; לפני
 const FileUploader = () => {
-    const context = useContext(UserContext);
-    if (!context) { throw new Error('Your Component must be used within a UserProvider'); }
+  const context = useContext(UserContext);
+  if (!context) { throw new Error('Your Component must be used within a UserProvider'); }
   const [file, setFile] = useState<File | null>(null);
   const [progress, setProgress] = useState(0);
   const [uploadedFiles, setUploadedFiles] = useState<string[]>([]);
@@ -44,14 +44,14 @@ const FileUploader = () => {
       // שלב 1: קבלת Presigned URL מהשרת
       const token = getToken();
       const response = await api.get('/upload/presigned-url', {
-        params: { 
+        params: {
           fileName: file.name,
-          userId: context.state.id 
-         },
+          userId: context.state.id
+        },
         headers: { Authorization: `Bearer ${token}` }, // הוספת הטוקן
       });
       console.log("b");
-      
+
       const presignedUrl = response.data.url;
       // שלב 2: העלאת הקובץ ישירות ל-S3
       await axios.put(presignedUrl, file, {
@@ -63,7 +63,7 @@ const FileUploader = () => {
           );
           setProgress(percent);
         },
-      });   
+      });
       alert('הקובץ הועלה בהצלחה!');
       fetchUploadedFiles();
     } catch (error) {
@@ -112,7 +112,7 @@ const FileUploader = () => {
     if (!newFileName) return;
     try {
       const token = getToken();
-      
+
       // קריאה לשירות לשנות את שם הקובץ
       await api.put('upload/rename-file', null, {
         params: {
@@ -123,27 +123,14 @@ const FileUploader = () => {
         headers: {
           Authorization: `Bearer ${token}`,
         },
-      })
-  
-      // קריאה להוסיף תיוג אחרי שינוי שם
-      await api.put('upload/tag-file', null, {
-        params: {
-          fileName: newFileName,  // שם הקובץ החדש
-          tagKey: 'renamed',      // מפתח התגית
-          tagValue: 'true',       // ערך התגית
-        },
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
       });
-  
       alert("שם הקובץ עודכן בהצלחה!");
       fetchUploadedFiles();
     } catch (error) {
       console.error("שגיאה בשינוי שם:", error);
     }
   };
-  
+
   const handleMove = async (fileName: string) => {
     if (!newFolder) {
       console.log("No new folder provided");
@@ -170,7 +157,7 @@ const FileUploader = () => {
     try {
       const token = getToken();
       await api.put(`upload/tag-file`, null, {
-        params: { fileName, tagKey: tag.key, tagValue: tag.value , userId: context.state.id },
+        params: { fileName, tagKey: tag.key, tagValue: tag.value, userId: context.state.id },
         headers: {
           Authorization: `Bearer ${token}`,
         },
