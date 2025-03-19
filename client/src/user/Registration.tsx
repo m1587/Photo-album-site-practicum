@@ -8,42 +8,37 @@ export const Register = () => {
   if (!context) { throw new Error('Your Component must be used within a UserProvider'); }
   const { dispatch } = context;
   const [open, setOpen] = useState(false);
-  const [formData, setFormData] = useState({ firstName: '', lastName: '', email: '', address: '', phone: '', password: '', });
+  const [formData, setFormData] = useState({ name: '', email: '', password: ''});
   const [error, setError] = useState<any>(null);
   const [openSnackbar, setOpenSnackbar] = useState(false);
-  const [errors, setErrors] = useState<any>({ firstName: '', lastName: '', email: '', address: '', phone: '', password: '', });
+  const [errors, setErrors] = useState<any>({ name: '', email: '', password: '' });
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
     setErrors({ ...errors, [e.target.name]: '' });
   };
   const handleSave = async () => {
     const newErrors: any = {};
-    if (!formData.firstName) newErrors.firstName = 'First name is required';
-    if (!formData.lastName) newErrors.lastName = 'Last name is required';
+    if (!formData.name) newErrors.name = 'First name is required';
     if (!formData.email) newErrors.email = 'Email is required';
     else if (!/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(formData.email)) {
       newErrors.email = 'Please enter a valid email address';}
-    if (!formData.address) newErrors.address = 'Address is required';
-    if (!formData.phone) {
-      newErrors.phone = 'Phone is required';
-    } else if (!/^\d{2,3}-\d{7}$/.test(formData.phone) && !/^\d{10}$/.test(formData.phone)) {
-      newErrors.phone = 'Please enter a valid phone number (e.g. 03-1234567 or 050-1234567)';}
     if (!formData.password) newErrors.password = 'Password is required';
     setErrors(newErrors);
     if (Object.keys(newErrors).length > 0) { return; }
     try {
       console.log(formData);
-      const res = await axios.post('http://localhost:3000/api/user/register', {
+      const response = await axios.post('https://localhost:7123/api/User', {
         email: formData.email,
         password: formData.password,
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        address: formData.address,
-        phone: formData.phone,
+        name: formData.name
       });
-      dispatch({ type: 'CREATE_USER', payload: res.data.user });
+      console.log(response.data); // הוספת לוג לבדיקת המבנה של התשובה
+      // const user:any = response.data; 
+      // dispatch({ type: 'CREATE_USER', payload: user});
+      dispatch({ type: 'CREATE_USER', payload:  response.data});
+
       alert('Registration successful!');
-      setFormData({ firstName: '', lastName: '', email: '', address: '', phone: '', password: '', });
+      setFormData({ name: '', email: '', password: '' });
       setOpen(false);
     } catch (error: any) {
       setError(error);
@@ -57,17 +52,11 @@ export const Register = () => {
          sx={{ position: 'absolute', top: '50%', left: '50%',
           transform: 'translate(-50%, -50%)', padding: 2, width: 300, backgroundColor: 'white', borderRadius: 1, boxShadow: 24, zIndex: 1300, }}>
           <TextField
-            label="First Name" name="firstName" value={formData.firstName}
+            label="Name" name="name" value={formData.name}
             onChange={handleChange} fullWidth
             sx={{ marginBottom: 2 }}
-            error={!!errors.firstName}
-            helperText={errors.firstName} />
-          <TextField
-            label="Last Name" name="lastName" value={formData.lastName}
-            onChange={handleChange} fullWidth
-            sx={{ marginBottom: 2 }}
-            error={!!errors.lastName}
-            helperText={errors.lastName} />
+            error={!!errors.name}
+            helperText={errors.name} />
           <TextField
             label="Email" name="email" value={formData.email}
             onChange={handleChange}
@@ -75,18 +64,6 @@ export const Register = () => {
             sx={{ marginBottom: 2 }}
             error={!!errors.email}
             helperText={errors.email} />
-          <TextField
-            label="Address" name="address" value={formData.address}
-            onChange={handleChange} fullWidth
-            sx={{ marginBottom: 2 }}
-            error={!!errors.address}
-            helperText={errors.address} />
-          <TextField
-            label="Phone" name="phone" value={formData.phone}
-            onChange={handleChange} fullWidth
-            sx={{ marginBottom: 2 }}
-            error={!!errors.phone}
-            helperText={errors.phone} />
           <TextField
             label="Password" name="password" value={formData.password}
             onChange={handleChange}

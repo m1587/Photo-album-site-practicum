@@ -1,9 +1,11 @@
 
 import { useState } from 'react';
-import { Box } from '@mui/material';
+import Box from '@mui/material/Box'; // ייבוא רכיב Box מ-MUI
 import { Login } from '../user/Login';
 import { Register } from '../user/Registration';
 import { UserName } from '../user/UserName';
+import FileUploader from '../file/FileUploader';
+import Navbar from './Navbar';
 
 const AppLayout = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -12,14 +14,15 @@ const AppLayout = () => {
   };
   return (
     <>
-<Box
-  sx={{
-    backgroundImage: 'url(public/images/1.jpg)',
-    backgroundSize: 'contain',
-    minHeight: '100vh',
-    overflow: 'hidden',
-  }}
->
+      <Box
+        sx={{
+          backgroundImage: 'url(public/images/1.jpg)',
+          backgroundSize: 'contain',
+          minHeight: '100vh',
+          overflow: 'hidden',
+        }}
+      >
+        <Navbar />
         <Box sx={{
           position: 'fixed',
           top: 10,
@@ -31,6 +34,9 @@ const AppLayout = () => {
             <>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <UserName />
+              </Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <FileUploader />
               </Box>
             </>
           ) : (

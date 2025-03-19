@@ -1,23 +1,22 @@
 ﻿using Dl.Entities;
 using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
 namespace Dl
 {
-    internal class DataContext : DbContext, IDataContext
+    public class DataContext : DbContext, IDataContext
     {
         public DbSet<User> Users { get; set; }
-        //protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-        //{
-        //    optionsBuilder.UseSqlServer(@"Server=(localdb)\MSSQLLocalDB;Database=clinic_db");
-        //}
-        public int SaveChanges()
+        public DbSet<File1> Files { get; set; }
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
-            return base.SaveChanges();
+            optionsBuilder.UseMySql(
+               @"Server=bg9wqnigknf88c4nwsyf-mysql.services.clever-cloud.com;Port=3306;Database=bg9wqnigknf88c4nwsyf;User=upn8gsoncwpeuxqy;Password=51I17qLyUjoi4pktQf8T",
+                new MySqlServerVersion(new Version(9, 0, 0))
+            );
         }
+        public async Task<int> SaveChangesAsync()
+        {
+            return await base.SaveChangesAsync();
+        }
+
     }
 }

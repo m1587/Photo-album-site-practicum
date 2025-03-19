@@ -6,25 +6,21 @@ using System.Threading.Tasks;
 
 namespace Dl.Entities
 {
-    public class User
+    public class Role
     {
         public int Id { get; set; }
         public string Name { get; set; }
-        public string Email { get; set; }
-        public string Password { get; set; }
-        public DateTime CreatedAt { get;} = DateTime.Now;
+        public string Description { get; set; }
+        public DateTime CreatedAt { get; } = DateTime.Now;
         public DateTime UpdatedAt { get; set; } = DateTime.Now;
         public int CreatedBy { get; set; } = 0;
         public int UpdatedBy { get; set; } = 0;
 
-        public User() { }
-
-        public User(int id, string name, string email, string password,int createdBy)
+        public Role(int id, string name, string description, int createdBy)
         {
             Id = id;
             Name = name;
-            Email = email;
-            Password = password;   
+            Description = description;
             CreatedBy = createdBy;
         }
     }

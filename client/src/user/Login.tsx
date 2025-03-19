@@ -1,8 +1,8 @@
 import { useContext, useState } from 'react';
 import { Box, Button, Modal, TextField } from '@mui/material';
-import axios from 'axios';
 import { UserContext } from '../context/UserContext';
 import ErrorSnackbar from '../Error';
+import api from '../axiosConfig';
 
 export const Login = ({ onLoginSuccess }: { onLoginSuccess: () => void }) => {
   const context = useContext(UserContext);
@@ -18,21 +18,22 @@ export const Login = ({ onLoginSuccess }: { onLoginSuccess: () => void }) => {
 
   const handleLogin = async () => {
     try {
-      const res = await axios.post('http://localhost:3000/api/user/login', {
+      const res = await api.post<{ token: string; user: any }>('User/login', {
         email: userEmail,
         password: password,
-      });
+      });       
+      console.log(res.data);
+      localStorage.setItem('token', res.data.token);
       dispatch({
         type: 'CREATE_USER',
         payload: res.data.user,
       });
-      console.log(res.data.message);
       alert('Login successful!');
       setOpen(false);
       onLoginSuccess();
       setUserEmail('');
       setPassword('');
-    } catch (error: any) {
+    } catch (error: any) {  
       setError(error);
       setOpenSnackbar(true);
     }

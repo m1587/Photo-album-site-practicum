@@ -1,51 +1,108 @@
 ﻿using Bl.InterfaceServices;
+using Bl.validation;
 using Dl;
 using Dl.Entities;
-using System.Xml.Linq;
-
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
 namespace Bl.Services
 {
-    internal class UserService:IUserService
+    public class UserService : IUserService
     {
         private readonly IDataContext _dataContext;
-        public UserService(IDataContext dataContext)
+        private readonly IConfiguration _configuration;
+        public UserService(IDataContext dataContext, IConfiguration configuration)
         {
             _dataContext = dataContext;
+            _configuration = configuration;
         }
-        public User GetUserById(int id)
+        public string GenerateJwtToken(string username, string[] roles)
         {
-            return _dataContext.Users.FirstOrDefault(x => x.Id == id);
-        }
-        public List<User> GetUsers()
-        {
-            return _dataContext.Users.ToList();
-        }
-        public void AddUser(User user)
-        {
-                _dataContext.Users.Add(user);
-                _dataContext.SaveChanges();
-        }
-        public void UpdateUser(int id, User user)
-        {
-            var newUser = _dataContext.Users.Where(user => user.Id == id).FirstOrDefault();
-            if (newUser != null)
+            var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]));
+            var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
+
+            var claims = new List<Claim>
             {
-                newUser.Name = user.Name;
-                newUser.Email = user.Email;
-                newUser.Password = user.Password;
-                newUser.UpdatedBy = user.UpdatedBy;
-                newUser.UpdatedAt = user.UpdatedAt;
-                _dataContext.SaveChanges();
-            }
-        }
-        public void RemoveUser(int id)
-        {
-            var userToDelete = _dataContext.Users.FirstOrDefault(baby => baby.Id == id);
-            if (userToDelete != null)
+            new Claim(ClaimTypes.Name, username)
+            };
+
+            // הוספת תפקידים כ-Claims
+            foreach (var role in roles)
             {
-                _dataContext.Users.Remove(userToDelete);
-                _dataContext.SaveChanges();
+                claims.Add(new Claim(ClaimTypes.Role, role));
             }
+
+            var token = new JwtSecurityToken(
+                issuer: _configuration["Jwt:Issuer"],
+                audience: _configuration["Jwt:Audience"],
+                claims: claims,
+                expires: DateTime.Now.AddMinutes(60),
+                signingCredentials: credentials
+            );
+
+            return new JwtSecurityTokenHandler().WriteToken(token);
+        }
+        public async Task<User> GetUserByIdAsync(int id)
+        {
+            UserValidation.ValidateUserId(id);
+            var user = await _dataContext.Users.FirstOrDefaultAsync(x => x.Id == id);
+            return user ?? throw new KeyNotFoundException("User not found");
+        }
+        public async Task<List<User>> GetUsersAsync() => await _dataContext.Users.ToListAsync();
+        public async Task AddUserAsync(User user)
+        {
+            UserValidation.ValidateUserId(user.Id);
+            UserValidation.ValidateUserName(user.Name);
+            user.Password = BCrypt.Net.BCrypt.HashPassword(user.Password);
+            await _dataContext.Users.AddAsync(user);
+            await _dataContext.SaveChangesAsync();
+        }
+        public async Task<User> LoginUserAsync(string email, string password)
+        {
+            var user = await _dataContext.Users.FirstOrDefaultAsync(u => u.Email == email);
+            if (user == null || !BCrypt.Net.BCrypt.Verify(password, user.Password))
+            {
+                throw new UnauthorizedAccessException("Invalid email or password");
+            }
+            return user;
+        }
+
+        public async Task<User> UpdateUserAsync(int id, User user)
+        {
+            UserValidation.ValidateUserId(id);
+            UserValidation.ValidateUserId(user.Id);
+
+            var existingUser = await _dataContext.Users.FirstOrDefaultAsync(u => u.Id == id);
+            if (existingUser == null)
+                throw new KeyNotFoundException("User not found");
+
+            existingUser.Name = user.Name;
+            existingUser.Email = user.Email;
+            if (!string.IsNullOrEmpty(user.Password))
+            {
+                existingUser.Password = BCrypt.Net.BCrypt.HashPassword(user.Password);
+            }
+            existingUser.UpdatedBy = user.UpdatedBy;
+            existingUser.UpdatedAt = user.UpdatedAt;
+
+            await _dataContext.SaveChangesAsync();
+            return existingUser;
+        }
+        
+
+        public async Task<User> RemoveUserAsync(int id)
+        {
+            UserValidation.ValidateUserId(id);
+            var userToDelete = await _dataContext.Users.FirstOrDefaultAsync(user => user.Id == id);
+            if (userToDelete == null)
+                throw new KeyNotFoundException("User not found");
+
+            _dataContext.Users.Remove(userToDelete);
+            await _dataContext.SaveChangesAsync();
+            return userToDelete;
         }
     }
 }

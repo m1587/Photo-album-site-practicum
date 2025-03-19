@@ -12,13 +12,13 @@ export const UserName = () => {
   return (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: '4px', zIndex: 1300, marginTop: 2 }}>
       <Avatar sx={{ bgcolor: '#e1c16e' }}>
-        {state.firstName.charAt(0).toUpperCase()}
+        {state.name.charAt(0).toUpperCase()}
       </Avatar>
       <Typography variant="h6" sx={{
         color: 'white',
         fontFamily: 'Roboto, sans-serif',
         fontWeight: 'bold',
-      }}>{state.firstName} </Typography>
+      }}>{state.name} </Typography>
     </Box>
   );
 };

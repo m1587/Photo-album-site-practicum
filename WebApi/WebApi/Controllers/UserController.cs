@@ -1,43 +1,128 @@
 ﻿using Bl.InterfaceServices;
 using Dl.Entities;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
+using WebApi.Models;
 
 namespace WebApi.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class UserController: ControllerBase
+    public class UserController : ControllerBase
     {
-        private readonly IUserService userService;
-        public UserController(IUserService userService)
+        private readonly IUserService _userService;
+
+        public UserController(IUserService userService, IConfiguration configuration)
         {
-            this.userService = userService;
+            this._userService = userService;
         }
         [HttpGet("{id}")]
-        public User GetUserById(int id)
+        [Authorize(Policy = "AdminOnly")]
+        public async Task<IActionResult> GetUserById(int id)
         {
-            return userService.GetUserById(id);
+            try
+            {
+                var user = await _userService.GetUserByIdAsync(id);
+                return user != null ? Ok(new { user.Id, user.Name, user.Email }) : NotFound(new { Message = "User not found" });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Message = "An error occurred", Error = ex.Message });
+            }
         }
         [HttpGet]
-        public List<User> GetUsers()
+        [Authorize(Policy = "AdminOnly")]
+        public async Task<IActionResult> GetUsers()
         {
-            return userService.GetUsers();
+            try
+            {
+                var users = await _userService.GetUsersAsync();
+                return Ok(users.Select(user => new { user.Id, user.Name, user.Email }));
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Message = "An error occurred", Error = ex.Message });
+            }
         }
+
         [HttpPost]
-        public void AddUser([FromBody] User user)
+        public async Task<IActionResult> AddUser([FromBody] UserPostModel user)
         {
-            userService.AddUser(user);
+            try
+            {
+                User userToAdd = new User { Name = user.Name,Email =user.Email,Password=user.Password };
+                await _userService.AddUserAsync(userToAdd);
+                return CreatedAtAction(nameof(GetUserById), new { id = userToAdd.Id }, user);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Message = "An error occurred", Error = ex.Message });
+            }
+        }
+        [HttpPost("login")]
+        public async Task<IActionResult> LoginUser([FromBody] Dl.Entities.LoginRequest loginRequest)
+        {
+            try
+            {
+                var user = await _userService.LoginUserAsync(loginRequest.Email, loginRequest.Password);
+
+                if (user == null)
+                    return Unauthorized(new { Message = "Invalid email or password" });
+                var token = _userService.GenerateJwtToken(user.Name, new[] { "User" });
+                return Ok(new { 
+                    Message = "Login successful",
+                    Token = token, 
+                    User = new { user.Id, user.Name, user.Email }
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Message = "An error occurred", Error = ex.Message });
+            }
         }
         [HttpPut("{id}")]
-        public void UpdateUser(int id, [FromBody] User user)
+        [Authorize]
+        public async Task<IActionResult> UpdateUser(int id, [FromBody] UserPostModel user)
         {
-            userService.UpdateUser(id, user);
+            try
+            {
+                User userToAdd = new User { Name = user.Name, Email = user.Email, Password = user.Password };
+                var updatedUser = await _userService.UpdateUserAsync(id, userToAdd);
+
+                if (updatedUser == null)
+                    return NotFound(new { Message = "User not found" });
+
+                return Ok(new { Message = "User updated successfully", User = updatedUser });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Message = "An error occurred", Error = ex.Message });
+            }
         }
         [HttpDelete("{id}")]
-        public void RemoveUser(int id)
+        [Authorize(Policy = "AdminOnly")]
+        public async Task<IActionResult> RemoveUser(int id)
         {
-            userService.RemoveUser(id);
-        }
-    }
+            try
+            {
+                var deletedUser = await _userService.RemoveUserAsync(id);
 
+                if (deletedUser == null)
+                    return NotFound(new { Message = "User not found" });
+
+                return Ok(new { Message = "User deleted successfully", User = deletedUser });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Message = "An error occurred", Error = ex.Message });
+            }
+        }
+
+
+    }
 }
+
