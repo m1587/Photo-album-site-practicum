@@ -24,8 +24,4 @@
     <ProjectReference Include="..\Dl\Dl.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="DTOs\" />
-  </ItemGroup>
-
 </Project>

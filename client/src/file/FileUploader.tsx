@@ -1,41 +1,27 @@
 
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Button, IconButton, LinearProgress, List, ListItem, ListItemText, TextField, Typography } from '@mui/material';
-import { useContext } from 'react';
+import React, { useEffect, useState, useContext } from 'react';
+import { Button, LinearProgress } from '@mui/material';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
-import DeleteIcon from '@mui/icons-material/Delete';
-import EditIcon from '@mui/icons-material/Edit';
-import FolderIcon from '@mui/icons-material/Folder';
-import LabelIcon from '@mui/icons-material/Label';
 import api from '../axiosConfig';
 import { UserContext } from '../context/UserContext';
+import ImageGallery from './ImageGallery';
 import axios from 'axios';
-// import axios, { AxiosProgressEvent } from 'axios'; לפני
+
 const FileUploader = () => {
   const context = useContext(UserContext);
-  if (!context) { throw new Error('Your Component must be used within a UserProvider'); }
+  if (!context) throw new Error('Your Component must be used within a UserProvider');
+
   const [file, setFile] = useState<File | null>(null);
   const [progress, setProgress] = useState(0);
-  const [uploadedFiles, setUploadedFiles] = useState<string[]>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<{ fileName: string, url: string }[]>([]);
   const [showFiles, setShowFiles] = useState(false);
-  const [newFolder, setNewFolder] = useState("");
-  const [newFileName, setNewFileName] = useState("");
-  const [tag, setTag] = useState({ key: "", value: "" });
-  const navigate = useNavigate();
+
+  const getToken = () => localStorage.getItem('token');
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       setFile(e.target.files[0]);
     }
-  };
-  const getToken = () => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      alert("לא נמצא טוקן, נא להתחבר מחדש.");
-      navigate('User/login'); // אם יש לך גישה לניווט
-      return null;
-    }
-    return token;
   };
   const handleUpload = async () => {
     if (!file) return;
@@ -46,16 +32,13 @@ const FileUploader = () => {
       const response = await api.get('/upload/presigned-url', {
         params: {
           fileName: file.name,
-          userId: context.state.id
         },
         headers: { Authorization: `Bearer ${token}` }, // הוספת הטוקן
       });
-
       const presignedUrl = response.data.url;
       // שלב 2: העלאת הקובץ ישירות ל-S3
       await axios.put(presignedUrl, file, {
-        // headers: {'Content-Type': file.type,}, 
-        // onUploadProgress: (progressEvent:AxiosProgressEvent   ) => {  לפני 
+        headers: { 'Content-Type': file.type, },
         onUploadProgress: (progressEvent) => {
           const percent = Math.round(
             ((progressEvent.loaded || 0) * 100) / (progressEvent.total || 1)
@@ -63,8 +46,27 @@ const FileUploader = () => {
           setProgress(percent);
         },
       });
+      ///
+      const imageData = {
+        UserId: context.state.id,
+        // challengeId: 1, // כאן תכניס את ה-Id של האתגר המתאים
+        ImageURL: `https://login-user-bucket-testpnoren.s3.us-east-1.amazonaws.com/${file.name}`, // ה-URL המלא
+        Caption: 'תיאור התמונה כאן', // אפשר להוסיף תיאור או כותרת
+      };
+      console.log("imageData being sent:", imageData);
+      try {
+        await api.post('Image', imageData, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json"
+          }
+        });
+      } catch (error) {
+        console.log('שגיאה בהעלאת התמונה:', error);
+      }
       alert('הקובץ הועלה בהצלחה!');
       fetchUploadedFiles();
+      // fetchVotesCount(uploadedFiles);
     } catch (error) {
       console.error('שגיאה בהעלאה:', error);
     }
@@ -73,7 +75,6 @@ const FileUploader = () => {
     try {
       const token = getToken();
       const response = await api.get("upload/list-files", {
-        params: { userId: context.state.id },
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -81,260 +82,35 @@ const FileUploader = () => {
       const signedUrls = await Promise.all(
         response.data.map(async (fileName: string) => {
           const presignedResponse = await api.get("/upload/presigned-url", {
-            params: { fileName, userId: context.state.id },
+            params: { fileName },
             headers: { Authorization: `Bearer ${token}` },
           });
-          return { fileName, url: presignedResponse.data.url };
+          return { fileName,
+             url: presignedResponse.data.url
+            };
         })
       );
-
       setUploadedFiles(signedUrls);
     } catch (error) {
       console.error("שגיאה בהבאת רשימת הקבצים:", error);
     }
   };
-
-  // const fetchUploadedFiles = async () => {
-  //   try {
-  //     const token = getToken();
-  //     const response = await api.get<string[]>("upload/list-files", {
-  //       params: { userId: context.state.id },
-  //       headers: {
-  //         Authorization: `Bearer ${token}`,
-  //       },
-  //     });
-  //     setUploadedFiles(response.data);
-  //   } catch (error) {
-  //     console.error('שגיאה בהבאת רשימת הקבצים:', error);
-  //   }
-  // };
   useEffect(() => {
-    fetchUploadedFiles(); // קריאה לשליפת הקבצים כשעמוד נטען
+    fetchUploadedFiles();
   }, []);
-
-  // הצגת רשימת הקבצים כאשר הכפתור נלחץ
-  const toggleFilesDisplay = () => {
-    setShowFiles((prev) => !prev);
-  };
-  const handleDelete = async (fileName: string) => {
-    try {
-      const token = getToken();
-      await api.delete(`upload/delete-file?fileName=${fileName}`, {
-        params: { userId: context.state.id },
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      alert('הקובץ נמחק בהצלחה!');
-      fetchUploadedFiles();
-    } catch (error) {
-      console.error('שגיאה במחיקת הקובץ:', error);
-    }
-  };
-  const handleRename = async (oldFileName: string) => {
-    if (!newFileName) return;
-    try {
-      const token = getToken();
-
-      // קריאה לשירות לשנות את שם הקובץ
-      await api.put('upload/rename-file', null, {
-        params: {
-          oldFileName,
-          newFileName,
-          userId: context.state.id,
-        },
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      alert("שם הקובץ עודכן בהצלחה!");
-      fetchUploadedFiles();
-    } catch (error) {
-      console.error("שגיאה בשינוי שם:", error);
-    }
-  };
-
-  const handleMove = async (fileName: string) => {
-    if (!newFolder) {
-      console.log("No new folder provided");
-      return;
-    }
-    console.log(`Moving file: ${fileName} to folder: ${newFolder}`);
-    try {
-      const token = getToken();
-      const response = await api.put(`upload/move-file`, null, {
-        params: { fileName, newFolder, userId: context.state.id },
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      console.log(response.data); // הוספת לוג לתגובה מהשרת
-      alert("הקובץ הועבר בהצלחה!");
-      fetchUploadedFiles();
-    } catch (error) {
-      console.error("שגיאה בהעברה:", error);
-    }
-  };
-
-  const handleTag = async (fileName: string) => {
-    if (!tag.key || !tag.value) return;
-    try {
-      const token = getToken();
-      await api.put(`upload/tag-file`, null, {
-        params: { fileName, tagKey: tag.key, tagValue: tag.value, userId: context.state.id },
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      alert("תגית נוספה בהצלחה!");
-    } catch (error) {
-      console.error("שגיאה בהוספת תגית:", error);
-    }
-  };
-  // return (
-  //   <div style={{ padding: '20px' }}>
-  //     <input
-  //       type="file"
-  //       onChange={handleFileChange}
-  //       style={{ marginBottom: '10px' }}
-  //     />
-  //     <Button
-  //       variant="contained"
-  //       color="primary"
-  //       onClick={handleUpload}
-  //       startIcon={<CloudUploadIcon />}
-  //       disabled={!file}
-  //     >
-  //       העלה קובץ
-  //     </Button>
-  //     {progress > 0 && (
-  //       <div style={{ marginTop: '10px' }}>
-  //         <Typography variant="body2">התקדמות: {progress}%</Typography>
-  //         <LinearProgress variant="determinate" value={progress} />
-  //       </div>
-  //     )}
-  //     {/* כפתור להראות או להסתיר את רשימת הקבצים שהועלו */}
-  //     <Button
-  //       variant="outlined"
-  //       color="secondary"
-  //       onClick={toggleFilesDisplay}
-  //       style={{ marginTop: '20px' }}
-  //     >
-  //       {showFiles ? 'הסתר קבצים' : 'הצג קבצים'}
-  //     </Button>
-
-  //     {/* הצגת הקבצים שהועלו */}
-  //     {showFiles && (
-  //       <div style={{ marginTop: '20px' }}>
-  //         <Typography variant="h6">קבצים שהועלו:</Typography>
-  //         <List>
-  //           {uploadedFiles.length > 0 ? (
-  //             uploadedFiles.map((fileName:any, index) => (
-  //               <ListItem key={index}>
-  //                 <img
-  //                   src={`https://login-user-bucket-testpnoren.s3.us-east-1.amazonaws.com/users/${context.state.id}/${fileName.fileName}`} // שימוש בכתובת ה-URL שקיבלנו מה-API
-  //                   style={{ width: '150px', height: '150px', objectFit: 'cover', marginRight: '10px' }}
-  //                 />
-  //                 <ListItemText primary={fileName} />
-
-  //                 <IconButton onClick={() => handleDelete(fileName)} color="error">
-  //                   <DeleteIcon />
-  //                 </IconButton>
-
-  //                 <TextField label="שם חדש" size="small" onChange={(e) => setNewFileName(e.target.value)} />
-  //                 <IconButton color="primary" onClick={() => handleRename(fileName)}>
-  //                   <EditIcon />
-  //                 </IconButton>
-
-  //                 <TextField label="תיקייה" size="small" onChange={(e) => setNewFolder(e.target.value)} />
-  //                 <IconButton onClick={() => handleMove(fileName)}>
-  //                   <FolderIcon />
-  //                 </IconButton>
-
-  //                 <TextField label="תגית" size="small" onChange={(e) => setTag({ ...tag, key: e.target.value })} />
-  //                 <TextField label="ערך" size="small" onChange={(e) => setTag({ ...tag, value: e.target.value })} />
-  //                 <IconButton onClick={() => handleTag(fileName)}>
-  //                   <LabelIcon />
-  //                 </IconButton>
-
-  //               </ListItem>
-  //             ))
-  //           ) : (
-  //             <Typography variant="body2">לא הועלו קבצים עדיין.</Typography>
-  //           )}
-  //         </List>
-
-
-  //       </div>
-  //     )}
-  //   </div>
-  // );
   return (
     <div style={{ padding: '20px' }}>
       <input type="file" onChange={handleFileChange} style={{ marginBottom: '10px' }} />
-      <Button
-        variant="contained"
-        color="primary"
-        onClick={handleUpload}
-        startIcon={<CloudUploadIcon />}
-        disabled={!file}
-      >
+      <Button variant="contained" color="primary" onClick={handleUpload} startIcon={<CloudUploadIcon />} disabled={!file}>
         העלה קובץ
       </Button>
-
-      {progress > 0 && (
-        <div style={{ marginTop: '10px' }}>
-          <Typography variant="body2">התקדמות: {progress}%</Typography>
-          <LinearProgress variant="determinate" value={progress} />
-        </div>
-      )}
-
-      <Button variant="outlined" color="secondary" onClick={toggleFilesDisplay} style={{ marginTop: '20px' }}>
+      {progress > 0 && <LinearProgress variant="determinate" value={progress} style={{ marginTop: '10px' }} />}
+      <Button variant="outlined" color="secondary" onClick={() => setShowFiles((prev) => !prev)} style={{ marginTop: '20px' }}>
         {showFiles ? 'הסתר תמונות' : 'הצג תמונות'}
       </Button>
-
-      {showFiles && (
-        <div style={{ marginTop: '20px' }}>
-          <Typography variant="h6">תמונות שהועלו:</Typography>
-          <List>
-            {uploadedFiles.length > 0 ? (
-              uploadedFiles.map((file: any, index) => (
-                <ListItem key={index}>
-                  <img
-                    src={`https://login-user-bucket-testpnoren.s3.us-east-1.amazonaws.com/users/${context.state.id}/${file.fileName}`} // שימוש בכתובת ה-URL שקיבלנו מה-API
-                    style={{ width: '150px', height: '150px', objectFit: 'cover', marginRight: '10px' }}
-                  />
-                  <IconButton onClick={() => handleDelete(file.fileName)} color="error">
-                    <DeleteIcon />
-                  </IconButton>
-
-                  <TextField label="שם חדש" size="small" onChange={(e) => setNewFileName(e.target.value)} />
-                  <IconButton color="primary" onClick={() => handleRename(file.fileName)}>
-                    <EditIcon />
-                  </IconButton>
-
-                  <TextField label="תיקייה" size="small" onChange={(e) => setNewFolder(e.target.value)} />
-                  <IconButton onClick={() => handleMove(file.fileName)}>
-                    <FolderIcon />
-                  </IconButton>
-
-                  <TextField label="תגית" size="small" onChange={(e) => setTag({ ...tag, key: e.target.value })} />
-                  <TextField label="ערך" size="small" onChange={(e) => setTag({ ...tag, value: e.target.value })} />
-                  <IconButton onClick={() => handleTag(file.fileName)}>
-                    <LabelIcon />
-                  </IconButton>
-                </ListItem>
-              ))
-            ) : (
-              <Typography variant="body2">לא הועלו תמונות עדיין.</Typography>
-            )}
-
-
-          </List>
-        </div>
-      )}
+      {showFiles && <ImageGallery uploadedFiles={uploadedFiles} />}
     </div>
   );
 };
-
 export default FileUploader;
+

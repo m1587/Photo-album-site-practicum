@@ -8,7 +8,9 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Amazon.S3;
 using Amazon.Extensions.NETCore.Setup;
+using System.Text.Json.Serialization;
 var builder = WebApplication.CreateBuilder(args);
+
 builder.Services.AddAWSService<IAmazonS3>();
 builder.Services.AddAuthentication(options =>
 {
@@ -32,11 +34,18 @@ builder.Services.AddAuthentication(options =>
 // הוספת הרשאות מבוססות-תפקידים
 builder.Services.AddAuthorization(options =>
 {
-    options.AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"));
+    options.AddPolicy("Admin", policy => policy.RequireRole("Admin"));
 });
-builder.Services.AddControllers();
+//builder.Services.AddControllers();
+builder.Services.AddControllers().AddJsonOptions(options =>
+{
+    options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+    options.JsonSerializerOptions.WriteIndented = true;
+});
 builder.Services.AddSingleton<IUserService, UserService>();
 builder.Services.AddSingleton<IDataContext, DataContext>();
+builder.Services.AddSingleton<IImageService, ImageService>();
+builder.Services.AddSingleton<IVoteService, VoteService>();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();

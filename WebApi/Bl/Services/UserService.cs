@@ -48,7 +48,7 @@ namespace Bl.Services
         public async Task<User> GetUserByIdAsync(int id)
         {
             UserValidation.ValidateUserId(id);
-            var user = await _dataContext.Users.FirstOrDefaultAsync(x => x.Id == id);
+            var user = await _dataContext.Users.FirstOrDefaultAsync(u => u.Id == id && !u.IsDeleted);
             return user ?? throw new KeyNotFoundException("User not found");
         }
         public async Task<List<User>> GetUsersAsync() => await _dataContext.Users.ToListAsync();
@@ -75,7 +75,7 @@ namespace Bl.Services
             UserValidation.ValidateUserId(id);
             UserValidation.ValidateUserId(user.Id);
 
-            var existingUser = await _dataContext.Users.FirstOrDefaultAsync(u => u.Id == id);
+            var existingUser = await GetUserByIdAsync(id);
             if (existingUser == null)
                 throw new KeyNotFoundException("User not found");
 
@@ -85,9 +85,6 @@ namespace Bl.Services
             {
                 existingUser.Password = BCrypt.Net.BCrypt.HashPassword(user.Password);
             }
-            existingUser.UpdatedBy = user.UpdatedBy;
-            existingUser.UpdatedAt = user.UpdatedAt;
-
             await _dataContext.SaveChangesAsync();
             return existingUser;
         }
@@ -96,12 +93,12 @@ namespace Bl.Services
         public async Task<User> RemoveUserAsync(int id)
         {
             UserValidation.ValidateUserId(id);
-            var userToDelete = await _dataContext.Users.FirstOrDefaultAsync(user => user.Id == id);
+            var userToDelete = await GetUserByIdAsync(id);
             if (userToDelete == null)
                 throw new KeyNotFoundException("User not found");
-
-            _dataContext.Users.Remove(userToDelete);
-            await _dataContext.SaveChangesAsync();
+            userToDelete.IsDeleted = true;
+            await UpdateUserAsync(userToDelete.Id, userToDelete);
+ 
             return userToDelete;
         }
     }

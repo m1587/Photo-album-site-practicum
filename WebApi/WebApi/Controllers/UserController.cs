@@ -16,12 +16,12 @@ namespace WebApi.Controllers
     {
         private readonly IUserService _userService;
 
-        public UserController(IUserService userService, IConfiguration configuration)
+        public UserController(IUserService userService)
         {
             this._userService = userService;
         }
         [HttpGet("{id}")]
-        [Authorize(Policy = "AdminOnly")]
+        [Authorize(Policy = "Admin")]
         public async Task<IActionResult> GetUserById(int id)
         {
             try
@@ -35,7 +35,7 @@ namespace WebApi.Controllers
             }
         }
         [HttpGet]
-        [Authorize(Policy = "AdminOnly")]
+        [Authorize(Policy = "Admin")]
         public async Task<IActionResult> GetUsers()
         {
             try
@@ -72,7 +72,7 @@ namespace WebApi.Controllers
 
                 if (user == null)
                     return Unauthorized(new { Message = "Invalid email or password" });
-                var token = _userService.GenerateJwtToken(user.Name, new[] { "User" });
+                var token = _userService.GenerateJwtToken(user.Name, new[] { user.Role.ToString() });
                 return Ok(new { 
                     Message = "Login successful",
                     Token = token, 
@@ -104,7 +104,7 @@ namespace WebApi.Controllers
             }
         }
         [HttpDelete("{id}")]
-        [Authorize(Policy = "AdminOnly")]
+        [Authorize(Policy = "Admin")]
         public async Task<IActionResult> RemoveUser(int id)
         {
             try
